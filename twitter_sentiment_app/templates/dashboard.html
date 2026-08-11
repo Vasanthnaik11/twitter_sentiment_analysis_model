@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{background:#020617;color:white;text-align:center;font-family:Arial;}
+input{padding:10px;width:250px;}
+button{padding:10px;background:#22c55e;border:none;color:white;margin:5px;}
+table{margin:auto;margin-top:20px;}
+td,th{border:1px solid white;padding:10px;}
+.trend-btn{background:#3b82f6;}
+</style>
+</head>
+<body>
+
+<h2>🚀 Sentiment Dashboard</h2>
+
+<input id="key" placeholder="Enter keyword">
+<button onclick="go()">Analyze</button>
+<a href="/logout"><button>Logout</button></a>
+
+<h3>🔥 Trending</h3>
+<div>
+{% for t in trending %}
+<button class="trend-btn" onclick="quick('{{t}}')">{{t}}</button>
+{% endfor %}
+</div>
+
+<table id="tbl"></table>
+
+<h3>📊 Charts</h3>
+<canvas id="pie"></canvas>
+<canvas id="bar"></canvas>
+
+<script>
+async function analyzeKeyword(k){
+let res = await fetch(`/analyze/${k}`);
+let data = await res.json();
+
+let html = "<tr><th>Tweet</th><th>Sentiment</th><th>Confidence</th></tr>";
+
+data.tweets.forEach(d=>{
+html+=`<tr>
+<td>${d.text}</td>
+<td>${d.sentiment}</td>
+<td>${d.confidence}%</td>
+</tr>`;
+});
+
+tbl.innerHTML = html;
+
+// PIE
+new Chart(document.getElementById("pie"),{
+type:"pie",
+data:{
+labels:["Positive","Negative"],
+datasets:[{data:[data.positive,data.negative]}]
+}
+});
+
+// BAR
+new Chart(document.getElementById("bar"),{
+type:"bar",
+data:{
+labels:["Positive","Negative"],
+datasets:[{data:[data.positive,data.negative]}]
+}
+});
+}
+
+function go(){
+analyzeKeyword(key.value);
+}
+
+function quick(k){
+key.value = k;
+analyzeKeyword(k);
+}
+</script>
+
+</body>
+</html>

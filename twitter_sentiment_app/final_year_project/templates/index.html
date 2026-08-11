@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Sentiment AI Pro</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+    margin:0;
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color:white;
+}
+
+/* LOGIN */
+.login {
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+.card {
+    background: rgba(255,255,255,0.06);
+    padding:30px;
+    border-radius:16px;
+    backdrop-filter: blur(12px);
+    width:320px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);
+}
+
+input {
+    width:100%;
+    padding:12px;
+    margin:8px 0;
+    border:none;
+    border-radius:8px;
+    outline:none;
+}
+
+button {
+    width:100%;
+    padding:12px;
+    margin-top:10px;
+    border:none;
+    border-radius:8px;
+    background: linear-gradient(45deg,#38bdf8,#6366f1);
+    color:white;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+button:hover {
+    transform: scale(1.03);
+}
+
+/* APP */
+.app {
+    display:none;
+}
+
+.sidebar {
+    width:220px;
+    height:100vh;
+    position:fixed;
+    background: rgba(255,255,255,0.05);
+    padding:20px;
+    backdrop-filter: blur(10px);
+}
+
+.sidebar h2 {
+    text-align:center;
+    margin-bottom:20px;
+}
+
+.sidebar button {
+    margin:8px 0;
+}
+
+.main {
+    margin-left:240px;
+    padding:20px;
+}
+
+.panel {
+    background: rgba(255,255,255,0.05);
+    padding:20px;
+    border-radius:14px;
+    margin-bottom:20px;
+}
+
+textarea {
+    width:100%;
+    height:100px;
+    padding:10px;
+    border-radius:8px;
+    border:none;
+}
+
+#loading {
+    display:none;
+    color:#38bdf8;
+}
+
+/* SENTIMENT COLORS */
+.positive { color:#22c55e; }
+.negative { color:#ef4444; }
+.neutral { color:#facc15; }
+
+ul {
+    list-style:none;
+    padding:0;
+}
+li {
+    padding:8px;
+    border-bottom:1px solid rgba(255,255,255,0.1);
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div class="login" id="loginPage">
+<div class="card">
+<h2>Welcome 👋</h2>
+
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+
+<button onclick="login()">Login</button>
+<button onclick="signup()">Signup</button>
+
+<p id="msg"></p>
+</div>
+</div>
+
+<!-- APP -->
+<div class="app" id="appPage">
+
+<div class="sidebar">
+<h2>AI Sentiment</h2>
+
+<button onclick="show('dash')">Dashboard</button>
+<button onclick="show('analytics')">Analytics</button>
+<button onclick="show('history')">History</button>
+<button onclick="logout()">Logout</button>
+</div>
+
+<div class="main">
+
+<!-- DASHBOARD -->
+<div id="dash" class="panel">
+<h2>Analyze Text</h2>
+
+<textarea id="text" placeholder="Type something..."></textarea>
+<button onclick="analyze()">Analyze</button>
+
+<div id="loading">Analyzing...</div>
+
+<h3 id="result"></h3>
+</div>
+
+<!-- ANALYTICS -->
+<div id="analytics" class="panel" style="display:none;">
+<h2>Analytics</h2>
+<canvas id="chart"></canvas>
+</div>
+
+<!-- HISTORY -->
+<div id="history" class="panel" style="display:none;">
+<h2>History</h2>
+<ul id="historyList"></ul>
+</div>
+
+</div>
+</div>
+
+<script>
+let chart;
+
+// LOGIN
+function login(){
+fetch('/login',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({email:email.value,password:password.value})
+})
+.then(res=>res.json())
+.then(data=>{
+if(data.message){
+loginPage.style.display='none';
+appPage.style.display='block';
+msg.innerText="";
+}else{
+msg.innerText=data.error;
+}
+});
+}
+
+// SIGNUP
+function signup(){
+fetch('/signup',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({email:email.value,password:password.value})
+})
+.then(res=>res.json())
+.then(data=>{
+msg.innerText=data.message || data.error;
+});
+}
+
+// LOGOUT
+function logout(){
+fetch('/logout').then(()=>{
+appPage.style.display='none';
+loginPage.style.display='flex';
+});
+}
+
+// NAVIGATION
+function show(page){
+['dash','analytics','history'].forEach(id=>{
+document.getElementById(id).style.display='none';
+});
+document.getElementById(page).style.display='block';
+
+if(page==='analytics') loadAnalytics();
+if(page==='history') loadHistory();
+}
+
+// ANALYZE
+function analyze(){
+let textVal = document.getElementById("text").value;
+
+if(!textVal.trim()){
+result.innerText="Enter text!";
+return;
+}
+
+loading.style.display='block';
+
+fetch('/analyze',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({text:textVal})
+})
+.then(res=>res.json())
+.then(data=>{
+loading.style.display='none';
+
+if(data.error){
+result.innerText=data.error;
+return;
+}
+
+let s=data.sentiment;
+
+if(s==="Positive") result.innerHTML="😊 <span class='positive'>Positive</span>";
+else if(s==="Negative") result.innerHTML="😡 <span class='negative'>Negative</span>";
+else result.innerHTML="😐 <span class='neutral'>Neutral</span>";
+});
+}
+
+// ANALYTICS
+function loadAnalytics(){
+fetch('/analytics')
+.then(res=>res.json())
+.then(data=>{
+if(chart) chart.destroy();
+
+chart=new Chart(document.getElementById('chart'),{
+type:'doughnut',
+data:{
+labels:['Positive','Negative','Neutral'],
+datasets:[{
+data:[data.Positive,data.Negative,data.Neutral]
+}]
+}
+});
+});
+}
+
+// HISTORY
+function loadHistory(){
+fetch('/history')
+.then(res=>res.json())
+.then(data=>{
+historyList.innerHTML="";
+data.forEach(item=>{
+let li=document.createElement("li");
+li.innerText=`${item[0]} → ${item[1]} (${item[2]})`;
+historyList.appendChild(li);
+});
+});
+}
+</script>
+
+</body>
+</html>
